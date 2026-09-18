@@ -1,856 +1,579 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PermianCloud - Weather Station Dashboard</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkbg: '#0f172a',
-                        cardbg: '#1e293b',
-                        borderbg: '#334155',
-                        accent: '#38bdf8',
-                        accenthover: '#0284c7'
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 3px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PermianCloud - Weather Station Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --panel-bg: #1e293b;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+    .status-badge.simulated {
+      background: rgba(234, 179, 8, 0.1);
+      color: #eab308;
+      border-color: rgba(234, 179, 8, 0.2);
+    }
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+    .btn {
+      background: var(--border-color);
+      color: var(--text-main);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #475569; }
+
+    main { padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 2rem; }
+
+    .grid-gauges {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card-title { font-size: 0.875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+    .value-display { font-size: 2.5rem; font-weight: bold; color: var(--text-main); }
+    .unit { font-size: 1.25rem; color: var(--text-muted); margin-left: 0.25rem; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    .form-group label { font-size: 0.875rem; color: var(--text-muted); }
+    .form-group input, .form-group select {
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+    }
+  </style>
 </head>
-<body class="bg-darkbg text-slate-100 min-h-screen custom-scrollbar flex flex-col justify-between">
+<body>
 
-    <!-- Navigation Header -->
-    <header class="glass-panel sticky top-0 z-40 px-4 lg:px-8 py-3.5 flex flex-wrap justify-between items-center shadow-lg border-b border-borderbg">
-        <div class="flex items-center space-x-3">
-            <div class="bg-gradient-to-tr from-cyan-500 to-blue-600 p-2.5 rounded-xl shadow-md shadow-cyan-500/20">
-                <i class="fa-solid font-bold fa-cloud-sun-rain text-white text-xl"></i>
-            </div>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
-                    PermianCloud <span class="text-xs font-normal text-cyan-400 px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-800">Urageuxy Pro</span>
-                </h1>
-                <p class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                    <span id="connection-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span id="station-name-display">Backyard Urageuxy WiFi Station</span>
-                </p>
-            </div>
-        </div>
-
-        <!-- Header Actions -->
-        <div class="flex items-center space-x-3 mt-2 sm:mt-0">
-            <!-- Simulator Toggle Button -->
-            <button id="sim-toggle-btn" onclick="toggleSimulator()" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition-all">
-                <i id="sim-icon" class="fa-solid fa-play text-xs"></i>
-                <span id="sim-status-text">Simulating Live Data</span>
-            </button>
-
-            <!-- Refresh Button -->
-            <button onclick="fetchWeatherData()" title="Manual Refresh" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-borderbg transition-all">
-                <i class="fa-solid fa-arrows-rotate"></i>
-            </button>
-
-            <!-- Settings Button -->
-            <button onclick="openSettingsModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-borderbg transition-all shadow-sm">
-                <i class="fa-solid fa-gear text-cyan-400"></i>
-                <span class="hidden sm:inline">Station Settings</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Dashboard Container -->
-    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8 space-y-6">
-
-        <!-- Top Overview Banner -->
-        <div class="glass-panel rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-            
-            <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 border border-cyan-800/80 px-2.5 py-1 rounded-md">Live Observation</span>
-                    <span id="last-update-text" class="text-xs text-slate-400">Updated just now</span>
-                </div>
-                <h2 id="weather-summary-text" class="text-2xl font-bold text-white mt-1">Partly Cloudy & Pleasant</h2>
-                <p id="station-location-text" class="text-sm text-slate-400"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> Backyard Station • Lat 37.97° N, Lon 122.03° W</p>
-            </div>
-
-            <!-- Primary Temp & Wind Mini Summary -->
-            <div class="flex items-center gap-6 divide-x divide-slate-700/60">
-                <div class="flex items-center gap-3">
-                    <i id="summary-weather-icon" class="fa-solid fa-cloud-sun text-4xl text-amber-400"></i>
-                    <div>
-                        <div class="text-3xl font-extrabold text-white tracking-tight"><span id="hero-temp">22.5</span><span class="temp-unit text-lg font-normal text-slate-400">°C</span></div>
-                        <div class="text-xs text-slate-400">Feels like <span id="hero-feelslike">23.1</span><span class="temp-unit">°C</span></div>
-                    </div>
-                </div>
-                <div class="pl-6 space-y-1">
-                    <div class="text-xs text-slate-400">Wind: <span id="hero-wind-dir" class="font-semibold text-slate-200">NW</span> <span id="hero-wind-speed" class="font-bold text-cyan-400">12.4</span> <span class="speed-unit">km/h</span></div>
-                    <div class="text-xs text-slate-400">Rain Today: <span id="hero-rain-today" class="font-semibold text-emerald-400">0.0</span> <span class="rain-unit">mm</span></div>
-                    <div class="text-xs text-slate-400">Barometer: <span id="hero-pressure" class="font-semibold text-slate-200">1013.2</span> <span class="press-unit">hPa</span></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Gauges Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-
-            <!-- Temperature Card -->
-            <div class="glass-panel rounded-2xl p-5 shadow-lg flex flex-col justify-between relative overflow-hidden group hover:border-slate-600 transition-all">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400"><i class="fa-solid fa-temperature-half text-rose-400 mr-1.5"></i>Temperature</span>
-                    <span id="temp-trend" class="text-xs font-medium text-emerald-400"><i class="fa-solid fa-arrow-trend-up mr-1"></i>+0.3</span>
-                </div>
-                <div class="flex justify-center my-3">
-                    <div class="relative w-36 h-36">
-                        <canvas id="gauge-temp" width="144" height="144"></canvas>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span id="gauge-temp-val" class="text-2xl font-bold text-white">22.5</span>
-                            <span class="temp-unit text-xs text-slate-400">°C</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/50">
-                    <span>Dew Pt: <strong id="val-dewpoint" class="text-slate-200">12.1</strong><span class="temp-unit">°C</span></span>
-                    <span>Humidity: <strong id="val-humidity" class="text-slate-200">52</strong>%</span>
-                </div>
-            </div>
-
-            <!-- Wind Gauge Card -->
-            <div class="glass-panel rounded-2xl p-5 shadow-lg flex flex-col justify-between relative overflow-hidden group hover:border-slate-600 transition-all">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400"><i class="fa-solid fa-compass text-cyan-400 mr-1.5"></i>Wind Direction & Speed</span>
-                    <span id="val-wind-deg" class="text-xs font-mono font-medium text-slate-300">315° (NW)</span>
-                </div>
-                <div class="flex justify-center my-2">
-                    <div class="relative w-36 h-36 flex items-center justify-center">
-                        <canvas id="gauge-wind" width="144" height="144"></canvas>
-                        <div id="wind-compass-dial" class="absolute inset-0 flex items-center justify-center transition-transform duration-700 ease-out">
-                            <div class="w-1 h-12 bg-rose-500 rounded-full origin-bottom transform -translate-y-4 shadow-md"></div>
-                        </div>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span id="val-wind-speed" class="text-xl font-bold text-white mt-1">12.4</span>
-                            <span class="speed-unit text-xs text-slate-400">km/h</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/50">
-                    <span>Gust: <strong id="val-wind-gust" class="text-slate-200">18.2</strong> <span class="speed-unit">km/h</span></span>
-                    <span>10m Avg: <strong id="val-wind-avg" class="text-slate-200">10.5</strong> <span class="speed-unit">km/h</span></span>
-                </div>
-            </div>
-
-            <!-- Pressure Card -->
-            <div class="glass-panel rounded-2xl p-5 shadow-lg flex flex-col justify-between relative overflow-hidden group hover:border-slate-600 transition-all">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400"><i class="fa-solid fa-gauge-high text-indigo-400 mr-1.5"></i>Barometer</span>
-                    <span id="pressure-status" class="text-xs font-medium text-emerald-400">Steady</span>
-                </div>
-                <div class="flex justify-center my-3">
-                    <div class="relative w-36 h-36">
-                        <canvas id="gauge-pressure" width="144" height="144"></canvas>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span id="val-pressure" class="text-xl font-bold text-white">1013.2</span>
-                            <span class="press-unit text-xs text-slate-400">hPa</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/50">
-                    <span>Absolute: <strong id="val-press-abs" class="text-slate-200">1009.5</strong> <span class="press-unit">hPa</span></span>
-                    <span>Trend: <strong id="val-press-trend" class="text-slate-200">+0.2/3h</strong></span>
-                </div>
-            </div>
-
-            <!-- Rain & Solar Card -->
-            <div class="glass-panel rounded-2xl p-5 shadow-lg flex flex-col justify-between relative overflow-hidden group hover:border-slate-600 transition-all">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400"><i class="fa-solid fa-cloud-showers-heavy text-blue-400 mr-1.5"></i>Rainfall & Solar</span>
-                    <span id="rain-state" class="text-xs font-medium text-slate-400">No Rain</span>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2 my-2">
-                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                        <span class="text-[10px] text-slate-400 uppercase font-semibold">Rain Rate</span>
-                        <span id="val-rain-rate" class="text-lg font-bold text-blue-400 mt-1">0.0</span>
-                        <span class="rain-rate-unit text-[10px] text-slate-400">mm/h</span>
-                    </div>
-                    <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                        <span class="text-[10px] text-slate-400 uppercase font-semibold">UV Index</span>
-                        <span id="val-uv" class="text-lg font-bold text-amber-400 mt-1">4.2</span>
-                        <span id="uv-level" class="text-[10px] text-amber-300 font-medium">Moderate</span>
-                    </div>
-                </div>
-
-                <div class="space-y-1.5 pt-2 border-t border-slate-700/50 text-xs">
-                    <div class="flex justify-between text-slate-400">
-                        <span>Solar Radiation:</span>
-                        <span class="text-slate-200 font-semibold"><span id="val-solar">485.0</span> W/m²</span>
-                    </div>
-                    <div class="flex justify-between text-slate-400">
-                        <span>Daily Rain Total:</span>
-                        <span class="text-slate-200 font-semibold"><span id="val-rain-today">0.0</span> <span class="rain-unit">mm</span></span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Live Data Visual Chart Section -->
-        <div class="glass-panel rounded-2xl p-6 shadow-xl space-y-4">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-chart-line text-cyan-400"></i> Historical Trends & Telemetry
-                    </h3>
-                    <p class="text-xs text-slate-400">Real-time parameters logged over time</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="switchChartDataset('temp')" id="btn-chart-temp" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-cyan-500 text-white shadow-md transition-all">Temperature</button>
-                    <button onclick="switchChartDataset('humidity')" id="btn-chart-humidity" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">Humidity</button>
-                    <button onclick="switchChartDataset('pressure')" id="btn-chart-pressure" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">Pressure</button>
-                    <button onclick="switchChartDataset('wind')" id="btn-chart-wind" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">Wind Speed</button>
-                </div>
-            </div>
-
-            <!-- Chart Canvas Container -->
-            <div class="relative w-full h-72 md:h-80 pt-2">
-                <canvas id="weatherHistoryChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Additional Secondary Parameter Cards Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div class="glass-panel p-4 rounded-xl text-center">
-                <i class="fa-solid fa-sun text-amber-400 text-lg mb-1"></i>
-                <div class="text-[11px] text-slate-400 uppercase font-semibold">Lux Index</div>
-                <div id="val-lux" class="text-base font-bold text-white mt-1">61,000 lx</div>
-            </div>
-            <div class="glass-panel p-4 rounded-xl text-center">
-                <i class="fa-solid fa-temperature-arrow-up text-orange-400 text-lg mb-1"></i>
-                <div class="text-[11px] text-slate-400 uppercase font-semibold">Max Temp Today</div>
-                <div class="text-base font-bold text-white mt-1"><span id="val-temp-max">25.4</span><span class="temp-unit text-xs font-normal">°C</span></div>
-            </div>
-            <div class="glass-panel p-4 rounded-xl text-center">
-                <i class="fa-solid fa-temperature-arrow-down text-cyan-400 text-lg mb-1"></i>
-                <div class="text-[11px] text-slate-400 uppercase font-semibold">Min Temp Today</div>
-                <div class="text-base font-bold text-white mt-1"><span id="val-temp-min">14.2</span><span class="temp-unit text-xs font-normal">°C</span></div>
-            </div>
-            <div class="glass-panel p-4 rounded-xl text-center">
-                <i class="fa-solid fa-cloud-showers-water text-blue-400 text-lg mb-1"></i>
-                <div class="text-[11px] text-slate-400 uppercase font-semibold">Monthly Rain</div>
-                <div class="text-base font-bold text-white mt-1"><span id="val-rain-month">14.8</span> <span class="rain-unit text-xs font-normal">mm</span></div>
-            </div>
-            <div class="glass-panel p-4 rounded-xl text-center">
-                <i class="fa-solid fa-battery-three-quarters text-emerald-400 text-lg mb-1"></i>
-                <div class="text-[11px] text-slate-400 uppercase font-semibold">Station Battery</div>
-                <div id="val-battery" class="text-base font-bold text-emerald-400 mt-1">Normal (4.9V)</div>
-            </div>
-            <div class="glass-panel p-4 rounded-xl text-center">
-                <i class="fa-solid fa-wifi text-cyan-400 text-lg mb-1"></i>
-                <div class="text-[11px] text-slate-400 uppercase font-semibold">Signal (RSSI)</div>
-                <div id="val-rssi" class="text-base font-bold text-white mt-1">-64 dBm</div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="glass-panel mt-12 py-4 px-6 border-t border-borderbg text-center text-xs text-slate-400">
-        <p>PermianCloud Weather Station Engine &bull; Compatible with Urageuxy, Ecowitt, Fine Offset & Wunderground APIs</p>
-    </footer>
-
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="glass-panel w-full max-w-lg rounded-2xl p-6 shadow-2xl border border-slate-700/80 space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div class="flex justify-between items-center border-b border-slate-700/60 pb-3">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-sliders text-cyan-400"></i> Station & API Settings
-                </h3>
-                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white p-1">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-
-            <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-4">
-                <!-- Unit System Selector -->
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Measurement Units</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-700 bg-slate-800/50 cursor-pointer hover:border-slate-600">
-                            <input type="radio" name="unit_system" value="metric" checked class="text-cyan-500 focus:ring-cyan-500">
-                            <span class="text-xs font-medium text-slate-200">Metric (°C, km/h, hPa, mm)</span>
-                        </label>
-                        <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-700 bg-slate-800/50 cursor-pointer hover:border-slate-600">
-                            <input type="radio" name="unit_system" value="imperial" class="text-cyan-500 focus:ring-cyan-500">
-                            <span class="text-xs font-medium text-slate-200">Imperial (°F, mph, inHg, in)</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Station Name -->
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Station Display Name</label>
-                    <input type="text" id="cfg-station-name" value="Backyard Urageuxy WiFi Station" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                </div>
-
-                <!-- Integration Mode -->
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Data Input Method</label>
-                    <select id="cfg-input-method" onchange="toggleApiFields()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                        <option value="sim">Built-in Interactive Simulator</option>
-                        <option value="ecowitt">Ecowitt / Urageuxy Direct API Endpoint</option>
-                        <option value="wunderground">Weather Underground API Key</option>
-                        <option value="custom_json">Custom Weather JSON URL</option>
-                    </select>
-                </div>
-
-                <!-- Endpoint URL -->
-                <div id="field-api-url" class="space-y-1 hidden">
-                    <label class="block text-xs font-semibold uppercase text-slate-300">API Endpoint / Server URL</label>
-                    <input type="url" id="cfg-api-url" placeholder="https://api.ecowitt.net/api/v3/device/real_time" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                    <p class="text-[11px] text-slate-400">Endpoint configured on your Urageuxy / Ecowitt WiFi gateway.</p>
-                </div>
-
-                <!-- API Key -->
-                <div id="field-api-key" class="space-y-1 hidden">
-                    <label class="block text-xs font-semibold uppercase text-slate-300">API Key / MAC Address</label>
-                    <input type="text" id="cfg-api-key" placeholder="Enter Station Key or MAC address" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                </div>
-
-                <!-- Update Frequency -->
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Update Refresh Interval</label>
-                    <select id="cfg-interval" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500">
-                        <option value="3000">Every 3 Seconds (Fast)</option>
-                        <option value="8000" selected>Every 8 Seconds (Recommended)</option>
-                        <option value="16000">Every 16 Seconds</option>
-                        <option value="60000">Every 1 Minute</option>
-                    </select>
-                </div>
-
-                <div class="pt-3 border-t border-slate-700/60 flex justify-end gap-3">
-                    <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all">Cancel</button>
-                    <button type="submit" class="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500 text-white hover:bg-cyan-600 shadow-lg shadow-cyan-500/25 transition-all">Save & Apply</button>
-                </div>
-            </form>
-        </div>
+  <header>
+    <div class="logo">
+      <i class="fa-solid fa-cloud-sun-rain"></i> PermianCloud
     </div>
+    <div class="header-actions">
+      <div id="statusBadge" class="status-badge simulated">
+        <i class="fa-solid fa-circle-dot"></i> <span id="statusText">Simulation Mode</span>
+      </div>
+      <button class="btn" onclick="openSettings()"><i class="fa-solid fa-gear"></i> Settings</button>
+    </div>
+  </header>
 
-    <script>
-        /* Modern Weather Station Core JavaScript */
+  <main>
+    <section class="grid-gauges">
+      <div class="card">
+        <div class="card-title"><span>Temperature</span><i class="fa-solid fa-temperature-half"></i></div>
+        <div class="value-display"><span id="valTemp">72.4</span><span class="unit">°F</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Humidity</span><i class="fa-solid fa-droplet"></i></div>
+        <div class="value-display"><span id="valHumidity">48</span><span class="unit">%</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Barometric Pressure</span><i class="fa-solid fa-gauge-high"></i></div>
+        <div class="value-display"><span id="valPressure">29.92</span><span class="unit">inHg</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Wind Speed</span><i class="fa-solid fa-wind"></i></div>
+        <div class="value-display"><span id="valWind">5.2</span><span class="unit">mph</span></div>
+      </div>
+    </section>
 
-        // Global State & Data Store
-        const state = {
-            isSimulating: true,
-            units: 'metric', // 'metric' or 'imperial'
-            refreshInterval: 8000,
-            intervalId: null,
-            activeChartDataset: 'temp',
-            stationName: 'Backyard Urageuxy WiFi Station',
-            inputMethod: 'sim',
-            apiUrl: '',
-            apiKey: '',
-            history: {
-                labels: [],
-                temp: [],
-                humidity: [],
-                pressure: [],
-                windSpeed: []
-            },
-            currentData: {
-                tempC: 22.5,
-                humidity: 52,
-                pressureHpa: 1013.2,
-                windSpeedKm: 12.4,
-                windGustKm: 18.2,
-                windDirDeg: 315,
-                dewPointC: 12.1,
-                rainRateMm: 0.0,
-                rainTodayMm: 0.0,
-                rainMonthMm: 14.8,
-                uvIndex: 4.2,
-                solarW: 485.0,
-                lux: 61000,
-                tempMaxC: 25.4,
-                tempMinC: 14.2,
-                rssi: -64,
-                battery: 'Normal (4.9V)'
-            }
-        };
+    <section class="card">
+      <div class="card-title"><span>24-Hour Temperature Trend</span></div>
+      <canvas id="chartTemp" height="100"></canvas>
+    </section>
+  </main>
 
-        let historyChart = null;
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <h2>PermianCloud Settings</h2>
+      
+      <div class="form-group">
+        <label for="dataSourceSelect"><strong>Data Source</strong></label>
+        <select id="dataSourceSelect" onchange="toggleSourceFields()">
+          <option value="sim">Simulation Mode</option>
+          <option value="custom">Custom JSON / Weathercloud URL</option>
+        </select>
+      </div>
 
-        // Initialization on Window Load
-        window.onload = function () {
-            initGaugeCanvas('gauge-temp');
-            initGaugeCanvas('gauge-pressure');
-            initGaugeCanvas('gauge-wind');
-            
-            initChart();
-            seedInitialHistory();
-            startUpdateLoop();
-            renderAll();
-        };
+      <div class="form-group" id="urlGroup" style="display:none;">
+        <label for="endpointUrl">Weathercloud JSON URL</label>
+        <input type="text" id="endpointUrl" placeholder="https://your-weathercloud-url-here">
+      </div>
 
-        // Seed 10 mock points for historical line chart
-        function seedInitialHistory() {
-            const now = new Date();
-            for (let i = 9; i >= 0; i--) {
-                const t = new Date(now.getTime() - i * 300000); // 5 min steps
-                const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                state.history.labels.push(timeStr);
-                state.history.temp.push(+(20 + Math.random() * 4).toFixed(1));
-                state.history.humidity.push(Math.round(48 + Math.random() * 10));
-                state.history.pressure.push(+(1011 + Math.random() * 4).toFixed(1));
-                state.history.windSpeed.push(+(8 + Math.random() * 10).toFixed(1));
-            }
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+        <button class="btn" onclick="closeSettings()">Cancel</button>
+        <button class="btn" style="background: var(--accent-blue);" onclick="saveSettings()">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tempChart;
+
+    function initChart() {
+      const ctx = document.getElementById('chartTemp').getContext('2d');
+      tempChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
+          datasets: [{
+            label: 'Temperature (°F)',
+            data: [65, 63, 61, 68, 74, 78, 75, 71],
+            borderColor: '#38bdf8',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
         }
+      });
+    }
 
-        // Timer Loop Manager
-        function startUpdateLoop() {
-            if (state.intervalId) clearInterval(state.intervalId);
-            state.intervalId = setInterval(fetchWeatherData, state.refreshInterval);
+    function openSettings() {
+      document.getElementById('settingsModal').style.display = 'flex';
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    function toggleSourceFields() {
+      const src = document.getElementById('dataSourceSelect').value;
+      document.getElementById('urlGroup').style.display = src === 'custom' ? 'flex' : 'none';
+    }
+
+    async function fetchData() {
+      const src = localStorage.getItem('permian_source') || 'sim';
+      const badge = document.getElementById('statusBadge');
+      const text = document.getElementById('statusText');
+
+      if (src === 'sim') {
+        badge.className = 'status-badge simulated';
+        text.innerText = 'Simulating Live Data';
+        document.getElementById('valTemp').innerText = (70 + Math.random() * 5).toFixed(1);
+        document.getElementById('valHumidity').innerText = Math.round(45 + Math.random() * 10);
+        return;
+      }
+
+      let url = localStorage.getItem('permian_url');
+      if (!url) return;
+
+      if (!url.startsWith('https://corsproxy.io/?')) {
+        url = 'https://corsproxy.io/?' + url;
+      }
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Network error');
+        const data = await res.json();
+
+        badge.className = 'status-badge';
+        text.innerText = 'LIVE';
+
+        if (data.temp !== undefined) document.getElementById('valTemp').innerText = data.temp;
+        if (data.humidity !== undefined) document.getElementById('valHumidity').innerText = data.humidity;
+        if (data.barometer !== undefined) document.getElementById('valPressure').innerText = data.barometer;
+        if (data.windspeed !== undefined) document.getElementById('valWind').innerText = data.windspeed;
+      } catch (err) {
+        badge.className = 'status-badge error';
+        text.innerText = 'Connection Error';
+      }
+    }
+
+    function saveSettings() {
+      const src = document.getElementById('dataSourceSelect').value;
+      const url = document.getElementById('endpointUrl').value;
+
+      localStorage.setItem('permian_source', src);
+      localStorage.setItem('permian_url', url);
+
+      closeSettings();
+      fetchData();
+    }
+
+    window.onload = () => {
+      initChart();
+      const savedSrc = localStorage.getItem('permian_source') || 'sim';
+      const savedUrl = localStorage.getItem('permian_url') || '';
+      document.getElementById('dataSourceSelect').value = savedSrc;
+      document.getElementById('endpointUrl').value = savedUrl;
+      toggleSourceFields();
+      fetchData();
+      setInterval(fetchData, 30000);
+    };
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PermianCloud - Weather Station Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --panel-bg: #1e293b;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+    .status-badge.simulated {
+      background: rgba(234, 179, 8, 0.1);
+      color: #eab308;
+      border-color: rgba(234, 179, 8, 0.2);
+    }
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+    .btn {
+      background: var(--border-color);
+      color: var(--text-main);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #475569; }
+
+    main { padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 2rem; }
+
+    .grid-gauges {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card-title { font-size: 0.875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+    .value-display { font-size: 2.5rem; font-weight: bold; color: var(--text-main); }
+    .unit { font-size: 1.25rem; color: var(--text-muted); margin-left: 0.25rem; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    .form-group label { font-size: 0.875rem; color: var(--text-muted); }
+    .form-group input, .form-group select {
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <i class="fa-solid fa-cloud-sun-rain"></i> PermianCloud
+    </div>
+    <div class="header-actions">
+      <div id="statusBadge" class="status-badge simulated">
+        <i class="fa-solid fa-circle-dot"></i> <span id="statusText">Simulation Mode</span>
+      </div>
+      <button class="btn" onclick="openSettings()"><i class="fa-solid fa-gear"></i> Settings</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid-gauges">
+      <div class="card">
+        <div class="card-title"><span>Temperature</span><i class="fa-solid fa-temperature-half"></i></div>
+        <div class="value-display"><span id="valTemp">72.4</span><span class="unit">°F</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Humidity</span><i class="fa-solid fa-droplet"></i></div>
+        <div class="value-display"><span id="valHumidity">48</span><span class="unit">%</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Barometric Pressure</span><i class="fa-solid fa-gauge-high"></i></div>
+        <div class="value-display"><span id="valPressure">29.92</span><span class="unit">inHg</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Wind Speed</span><i class="fa-solid fa-wind"></i></div>
+        <div class="value-display"><span id="valWind">5.2</span><span class="unit">mph</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title"><span>24-Hour Temperature Trend</span></div>
+      <canvas id="chartTemp" height="100"></canvas>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <h2>PermianCloud Settings</h2>
+      
+      <div class="form-group">
+        <label for="dataSourceSelect"><strong>Data Source</strong></label>
+        <select id="dataSourceSelect" onchange="toggleSourceFields()">
+          <option value="sim">Simulation Mode</option>
+          <option value="custom">Custom JSON / Weathercloud URL</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="urlGroup" style="display:none;">
+        <label for="endpointUrl">Weathercloud JSON URL</label>
+        <input type="text" id="endpointUrl" placeholder="https://your-weathercloud-url-here">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+        <button class="btn" onclick="closeSettings()">Cancel</button>
+        <button class="btn" style="background: var(--accent-blue);" onclick="saveSettings()">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tempChart;
+
+    function initChart() {
+      const ctx = document.getElementById('chartTemp').getContext('2d');
+      tempChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['12 AM', '3 AM', '6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'],
+          datasets: [{
+            label: 'Temperature (°F)',
+            data: [65, 63, 61, 68, 74, 78, 75, 71],
+            borderColor: '#38bdf8',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
         }
+      });
+    }
 
-        // Fetch Weather Data (Simulation or External API)
-        function fetchWeatherData() {
-            if (state.isSimulating) {
-                simulateNextDataPoint();
-            } else {
-                fetchRealApiData();
-            }
-            updateChart();
-            renderAll();
-        }
+    function openSettings() {
+      document.getElementById('settingsModal').style.display = 'flex';
+    }
 
-        // Realistic Simulation Engine
-        function simulateNextDataPoint() {
-            const d = state.currentData;
-            // Slight stochastic random walks
-            d.tempC = +(d.tempC + (Math.random() - 0.48) * 0.4).toFixed(1);
-            d.humidity = Math.min(100, Math.max(20, Math.round(d.humidity + (Math.random() - 0.5) * 2)));
-            d.pressureHpa = +(d.pressureHpa + (Math.random() - 0.5) * 0.3).toFixed(1);
-            d.windSpeedKm = Math.max(0, +(d.windSpeedKm + (Math.random() - 0.5) * 2.5).toFixed(1));
-            d.windGustKm = +(d.windSpeedKm + Math.random() * 8).toFixed(1);
-            d.windDirDeg = (d.windDirDeg + Math.round((Math.random() - 0.5) * 20) + 360) % 360;
-            
-            // Recalculate Dew Point (Approx formula)
-            d.dewPointC = +(d.tempC - ((100 - d.humidity) / 5)).toFixed(1);
+    function closeSettings() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
 
-            // Update Max / Min bounds
-            if (d.tempC > d.tempMaxC) d.tempMaxC = d.tempC;
-            if (d.tempC < d.tempMinC) d.tempMinC = d.tempC;
+    function toggleSourceFields() {
+      const src = document.getElementById('dataSourceSelect').value;
+      document.getElementById('urlGroup').style.display = src === 'custom' ? 'flex' : 'none';
+    }
 
-            // Log entry into history
-            const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            state.history.labels.push(timeLabel);
-            state.history.temp.push(d.tempC);
-            state.history.humidity.push(d.humidity);
-            state.history.pressure.push(d.pressureHpa);
-            state.history.windSpeed.push(d.windSpeedKm);
+    async function fetchData() {
+      const src = localStorage.getItem('permian_source') || 'sim';
+      const badge = document.getElementById('statusBadge');
+      const text = document.getElementById('statusText');
 
-            if (state.history.labels.length > 20) {
-                state.history.labels.shift();
-                state.history.temp.shift();
-                state.history.humidity.shift();
-                state.history.pressure.shift();
-                state.history.windSpeed.shift();
-            }
+      if (src === 'sim') {
+        badge.className = 'status-badge simulated';
+        text.innerText = 'Simulating Live Data';
+        document.getElementById('valTemp').innerText = (70 + Math.random() * 5).toFixed(1);
+        document.getElementById('valHumidity').innerText = Math.round(45 + Math.random() * 10);
+        return;
+      }
 
-            document.getElementById('last-update-text').innerText = 'Updated ' + new Date().toLocaleTimeString();
-        }
+      let url = localStorage.getItem('permian_url');
+      if (!url) return;
 
-        // Fetch Live Weather Station Webhook / API
-        function fetchRealApiData() {
-            if (!state.apiUrl) return;
-            fetch(state.apiUrl, {
-                headers: state.apiKey ? { 'Authorization': 'Bearer ' + state.apiKey } : {}
-            })
-            .then(res => res.json())
-            .then(data => {
-                // Example mapping standard JSON response keys
-                if (data.temp) state.currentData.tempC = parseFloat(data.temp);
-                if (data.humidity) state.currentData.humidity = parseInt(data.humidity);
-                if (data.pressure) state.currentData.pressureHpa = parseFloat(data.pressure);
-                if (data.windspeed) state.currentData.windSpeedKm = parseFloat(data.windspeed);
-                if (data.winddir) state.currentData.windDirDeg = parseInt(data.winddir);
-                document.getElementById('last-update-text').innerText = 'Updated ' + new Date().toLocaleTimeString();
-            })
-            .catch(err => {
-                console.error('Failed to fetch live API:', err);
-                document.getElementById('last-update-text').innerText = 'API Fetch Error';
-            });
-        }
+      if (!url.startsWith('https://corsproxy.io/?')) {
+        url = 'https://corsproxy.io/?' + url;
+      }
 
-        // Unit Conversion Helpers
-        function cToF(c) { return +(c * 9 / 5 + 32).toFixed(1); }
-        function kmToMph(km) { return +(km * 0.621371).toFixed(1); }
-        function hpaToInHg(hpa) { return +(hpa * 0.02953).toFixed(2); }
-        function mmToIn(mm) { return +(mm * 0.0393701).toFixed(2); }
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Network error');
+        const data = await res.json();
 
-        function degToCompass(deg) {
-            const val = Math.floor((deg / 22.5) + 0.5);
-            const arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-            return arr[val % 16];
-        }
+        badge.className = 'status-badge';
+        text.innerText = 'LIVE';
 
-        // Render UI Elements & Text
-        function renderAll() {
-            const d = state.currentData;
-            const isMetric = state.units === 'metric';
+        if (data.temp !== undefined) document.getElementById('valTemp').innerText = data.temp;
+        if (data.humidity !== undefined) document.getElementById('valHumidity').innerText = data.humidity;
+        if (data.barometer !== undefined) document.getElementById('valPressure').innerText = data.barometer;
+        if (data.windspeed !== undefined) document.getElementById('valWind').innerText = data.windspeed;
+      } catch (err) {
+        badge.className = 'status-badge error';
+        text.innerText = 'Connection Error';
+      }
+    }
 
-            // Update Labels & Units Text
-            document.querySelectorAll('.temp-unit').forEach(el => el.innerText = isMetric ? '°C' : '°F');
-            document.querySelectorAll('.speed-unit').forEach(el => el.innerText = isMetric ? 'km/h' : 'mph');
-            document.querySelectorAll('.press-unit').forEach(el => el.innerText = isMetric ? 'hPa' : 'inHg');
-            document.querySelectorAll('.rain-unit').forEach(el => el.innerText = isMetric ? 'mm' : 'in');
-            document.querySelectorAll('.rain-rate-unit').forEach(el => el.innerText = isMetric ? 'mm/h' : 'in/h');
+    function saveSettings() {
+      const src = document.getElementById('dataSourceSelect').value;
+      const url = document.getElementById('endpointUrl').value;
 
-            // Hero Banner Values
-            document.getElementById('hero-temp').innerText = isMetric ? d.tempC : cToF(d.tempC);
-            document.getElementById('hero-feelslike').innerText = isMetric ? d.tempC : cToF(d.tempC);
-            document.getElementById('hero-wind-speed').innerText = isMetric ? d.windSpeedKm : kmToMph(d.windSpeedKm);
-            document.getElementById('hero-wind-dir').innerText = degToCompass(d.windDirDeg);
-            document.getElementById('hero-rain-today').innerText = isMetric ? d.rainTodayMm : mmToIn(d.rainTodayMm);
-            document.getElementById('hero-pressure').innerText = isMetric ? d.pressureHpa : hpaToInHg(d.pressureHpa);
+      localStorage.setItem('permian_source', src);
+      localStorage.setItem('permian_url', url);
 
-            // Gauge Card Values
-            document.getElementById('gauge-temp-val').innerText = isMetric ? d.tempC : cToF(d.tempC);
-            document.getElementById('val-dewpoint').innerText = isMetric ? d.dewPointC : cToF(d.dewPointC);
-            document.getElementById('val-humidity').innerText = d.humidity;
+      closeSettings();
+      fetchData();
+    }
 
-            document.getElementById('val-wind-speed').innerText = isMetric ? d.windSpeedKm : kmToMph(d.windSpeedKm);
-            document.getElementById('val-wind-gust').innerText = isMetric ? d.windGustKm : kmToMph(d.windGustKm);
-            document.getElementById('val-wind-avg').innerText = isMetric ? (d.windSpeedKm * 0.85).toFixed(1) : kmToMph(d.windSpeedKm * 0.85);
-            document.getElementById('val-wind-deg').innerText = `${d.windDirDeg}° (${degToCompass(d.windDirDeg)})`;
-            
-            // Rotate Wind Needle Compass
-            document.getElementById('wind-compass-dial').style.transform = `rotate(${d.windDirDeg}deg)`;
-
-            document.getElementById('val-pressure').innerText = isMetric ? d.pressureHpa : hpaToInHg(d.pressureHpa);
-            document.getElementById('val-press-abs').innerText = isMetric ? (d.pressureHpa - 3.7).toFixed(1) : hpaToInHg(d.pressureHpa - 3.7);
-
-            document.getElementById('val-rain-rate').innerText = isMetric ? d.rainRateMm : mmToIn(d.rainRateMm);
-            document.getElementById('val-rain-today').innerText = isMetric ? d.rainTodayMm : mmToIn(d.rainTodayMm);
-            document.getElementById('val-rain-month').innerText = isMetric ? d.rainMonthMm : mmToIn(d.rainMonthMm);
-            
-            document.getElementById('val-uv').innerText = d.uvIndex;
-            document.getElementById('val-solar').innerText = d.solarW;
-            document.getElementById('val-lux').innerText = d.lux.toLocaleString() + ' lx';
-            
-            document.getElementById('val-temp-max').innerText = isMetric ? d.tempMaxC : cToF(d.tempMaxC);
-            document.getElementById('val-temp-min').innerText = isMetric ? d.tempMinC : cToF(d.tempMinC);
-
-            document.getElementById('val-battery').innerText = d.battery;
-            document.getElementById('val-rssi').innerText = d.rssi + ' dBm';
-
-            // Draw Gauges Canvas Arc
-            drawTemperatureGauge(d.tempC);
-            drawPressureGauge(d.pressureHpa);
-            drawWindGauge();
-        }
-
-        // Initialize HTML5 Canvas Gauges
-        function initGaugeCanvas(id) {
-            const canvas = document.getElementById(id);
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Draw Circular Arc Temperature Gauge
-        function drawTemperatureGauge(tempC) {
-            const canvas = document.getElementById('gauge-temp');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = 58;
-
-            // Background Arc
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0.75 * Math.PI, 2.25 * Math.PI);
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = '#334155';
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            // Temp Mapping (-10°C to 45°C -> 0 to 1)
-            const minTemp = -10, maxTemp = 45;
-            const pct = Math.min(1, Math.max(0, (tempC - minTemp) / (maxTemp - minTemp)));
-            const endAngle = 0.75 * Math.PI + (pct * 1.5 * Math.PI);
-
-            // Active Arc
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0.75 * Math.PI, endAngle);
-            ctx.lineWidth = 10;
-            
-            // Gradient fill
-            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            grad.addColorStop(0, '#38bdf8');
-            grad.addColorStop(0.5, '#f59e0b');
-            grad.addColorStop(1, '#f43f5e');
-            ctx.strokeStyle = grad;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-        }
-
-        // Draw Circular Arc Barometer Gauge
-        function drawPressureGauge(hpa) {
-            const canvas = document.getElementById('gauge-pressure');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = 58;
-
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0.75 * Math.PI, 2.25 * Math.PI);
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = '#334155';
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            // Pressure Mapping (970 hPa to 1050 hPa)
-            const minP = 970, maxP = 1050;
-            const pct = Math.min(1, Math.max(0, (hpa - minP) / (maxP - minP)));
-            const endAngle = 0.75 * Math.PI + (pct * 1.5 * Math.PI);
-
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0.75 * Math.PI, endAngle);
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = '#818cf8';
-            ctx.lineCap = 'round';
-            ctx.stroke();
-        }
-
-        // Draw Wind Compass Outer Ring
-        function drawWindGauge() {
-            const canvas = document.getElementById('gauge-wind');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = 58;
-
-            // Outer Ring
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#334155';
-            ctx.stroke();
-
-            // Compass Cardinal Ticks (N, E, S, W)
-            const cardinals = [
-                { text: 'N', x: centerX, y: centerY - radius + 14 },
-                { text: 'E', x: centerX + radius - 14, y: centerY + 4 },
-                { text: 'S', x: centerX, y: centerY + radius - 6 },
-                { text: 'W', x: centerX - radius + 14, y: centerY + 4 }
-            ];
-
-            ctx.font = 'bold 10px Inter, sans-serif';
-            ctx.fillStyle = '#94a3b8';
-            ctx.textAlign = 'center';
-
-            cardinals.forEach(c => {
-                ctx.fillText(c.text, c.x, c.y);
-            });
-        }
-
-        // Initialize Chart.js Instance
-        function initChart() {
-            const ctx = document.getElementById('weatherHistoryChart').getContext('2d');
-            
-            historyChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: state.history.labels,
-                    datasets: [{
-                        label: 'Temperature (°C)',
-                        data: state.history.temp,
-                        borderColor: '#38bdf8',
-                        backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointBackgroundColor: '#38bdf8',
-                        pointRadius: 3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: '#1e293b',
-                            titleColor: '#f8fafc',
-                            bodyColor: '#38bdf8',
-                            borderColor: '#334155',
-                            borderWidth: 1
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                            ticks: { color: '#94a3b8', font: { size: 10 } }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                            ticks: { color: '#94a3b8', font: { size: 10 } }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Switch Chart Active Parameter Dataset
-        function switchChartDataset(param) {
-            state.activeChartDataset = param;
-
-            const isMetric = state.units === 'metric';
-            const btns = ['temp', 'humidity', 'pressure', 'wind'];
-            btns.forEach(b => {
-                const btnEl = document.getElementById(`btn-chart-${b}`);
-                if (b === param) {
-                    btnEl.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-cyan-500 text-white shadow-md transition-all';
-                } else {
-                    btnEl.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all';
-                }
-            });
-
-            let dataVals = [];
-            let label = '';
-            let color = '#38bdf8';
-
-            if (param === 'temp') {
-                label = `Temperature (${isMetric ? '°C' : '°F'})`;
-                color = '#38bdf8';
-                dataVals = state.history.temp.map(v => isMetric ? v : cToF(v));
-            } else if (param === 'humidity') {
-                label = 'Humidity (%)';
-                color = '#a855f7';
-                dataVals = state.history.humidity;
-            } else if (param === 'pressure') {
-                label = `Pressure (${isMetric ? 'hPa' : 'inHg'})`;
-                color = '#818cf8';
-                dataVals = state.history.pressure.map(v => isMetric ? v : hpaToInHg(v));
-            } else if (param === 'wind') {
-                label = `Wind Speed (${isMetric ? 'km/h' : 'mph'})`;
-                color = '#34d399';
-                dataVals = state.history.windSpeed.map(v => isMetric ? v : kmToMph(v));
-            }
-
-            historyChart.data.labels = state.history.labels;
-            historyChart.data.datasets[0].label = label;
-            historyChart.data.datasets[0].data = dataVals;
-            historyChart.data.datasets[0].borderColor = color;
-            historyChart.data.datasets[0].pointBackgroundColor = color;
-            historyChart.data.datasets[0].backgroundColor = color + '20';
-            historyChart.update();
-        }
-
-        function updateChart() {
-            switchChartDataset(state.activeChartDataset);
-        }
-
-        // Toggle Simulator On/Off
-        function toggleSimulator() {
-            state.isSimulating = !state.isSimulating;
-            const btnText = document.getElementById('sim-status-text');
-            const icon = document.getElementById('sim-icon');
-            const dot = document.getElementById('connection-status-dot');
-
-            if (state.isSimulating) {
-                btnText.innerText = 'Simulating Live Data';
-                icon.className = 'fa-solid fa-play text-xs';
-                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-            } else {
-                btnText.innerText = 'Simulator Paused';
-                icon.className = 'fa-solid fa-pause text-xs';
-                dot.className = 'w-2 h-2 rounded-full bg-amber-500';
-            }
-        }
-
-        // Modal Handlers
-        function openSettingsModal() {
-            document.getElementById('settings-modal').classList.remove('hidden');
-        }
-
-        function closeSettingsModal() {
-            document.getElementById('settings-modal').classList.add('hidden');
-        }
-
-        function toggleApiFields() {
-            const method = document.getElementById('cfg-input-method').value;
-            const urlField = document.getElementById('field-api-url');
-            const keyField = document.getElementById('field-api-key');
-
-            if (method === 'sim') {
-                urlField.classList.add('hidden');
-                keyField.classList.add('hidden');
-            } else {
-                urlField.classList.remove('hidden');
-                keyField.classList.remove('hidden');
-            }
-        }
-
-        // Save Form Settings
-        function saveSettings(e) {
-            e.preventDefault();
-            const selectedUnit = document.querySelector('input[name="unit_system"]:checked').value;
-            state.units = selectedUnit;
-
-            state.stationName = document.getElementById('cfg-station-name').value;
-            document.getElementById('station-name-display').innerText = state.stationName;
-
-            state.inputMethod = document.getElementById('cfg-input-method').value;
-            state.isSimulating = (state.inputMethod === 'sim');
-
-            state.apiUrl = document.getElementById('cfg-api-url').value;
-            state.apiKey = document.getElementById('cfg-api-key').value;
-
-            state.refreshInterval = parseInt(document.getElementById('cfg-interval').value, 10);
-
-            startUpdateLoop();
-            renderAll();
-            closeSettingsModal();
-        }
-    </script>
+    window.onload = () => {
+      initChart();
+      const savedSrc = localStorage.getItem('permian_source') || 'sim';
+      const savedUrl = localStorage.getItem('permian_url') || '';
+      document.getElementById('dataSourceSelect').value = savedSrc;
+      document.getElementById('endpointUrl').value = savedUrl;
+      toggleSourceFields();
+      fetchData();
+      setInterval(fetchData, 30000);
+    };
+  </script>
 </body>
 </html>
